@@ -1,7 +1,35 @@
 ﻿
+using System.Security.Cryptography;
+using System.Text;
 using GestionMotDePasse.Data;
 using GestionMotDePasse.Data.Models;
+using GestionMotDePasse.Services;
 using Microsoft.EntityFrameworkCore;
+
+Console.WriteLine("Vueillez saisir le mot de passe maitre :");
+string masterPassword = "";
+
+while (string.IsNullOrEmpty(masterPassword))
+{
+    masterPassword = GetUserEntryPassword();
+}
+
+var hashMasterPassword = SHA256.HashData(Encoding.UTF8.GetBytes(masterPassword));
+
+if (!File.Exists("pwd.bin"))
+{
+    File.WriteAllBytes("pwd.bin", hashMasterPassword);
+}
+else
+{
+    var password = File.ReadAllBytes("pwd.bin");
+    if (!hashMasterPassword.SequenceEqual(password))
+    {         
+        Console.WriteLine("Mot de passe maitre incorrect. Au revoir!");
+        Environment.Exit(1);
+    }
+
+}
 
 // gestion base sql lite
 await using var context = new PassManagerDbContext();
@@ -19,7 +47,6 @@ int index = 0;
 
 // lecture de la touche appuyée par l'utilisateur
 ConsoleKeyInfo key;
-string choix = "";
 
 do
 {
@@ -78,16 +105,16 @@ do
                 }
 
                 Console.WriteLine("Entrez le mot de passe :");
-                string? password = Console.ReadLine();
+                string? password = GetUserEntryPassword();
                 while (string.IsNullOrEmpty(password))
                 {
-                    password = Console.ReadLine();
+                    password = GetUserEntryPassword();
                 }
 
                 var passwordEntry = new PasswordEntry()
                 {
                     Name = name,
-                    Value = password,
+                    Value = CryptoService.Encrypt(password, hashMasterPassword ),
                     InsertDate = DateTime.UtcNow
                 };
 
@@ -109,3 +136,37 @@ do
 while (key.Key != ConsoleKey.Escape);
 
 Console.WriteLine(" Au revoir! ");
+
+
+
+static string GetUserEntryPassword()
+{
+   
+    StringBuilder password = new();
+
+    var key = Console.ReadKey(true);
+    while (key.Key != ConsoleKey.Enter)
+    {
+        if (key.Key == ConsoleKey.Backspace && password.Length > 0)
+        {
+            password.Remove(password.Length - 1, 1);
+
+            // efface le dernier *
+            var pos = Console.CursorLeft;
+            Console.SetCursorPosition(pos - 1, Console.CursorTop);
+            Console.Write(" ");
+            Console.SetCursorPosition(pos - 1, Console.CursorTop);
+
+        }
+        else if (!char.IsControl(key.KeyChar))
+        {
+            password.Append(key.KeyChar);
+            Console.Write("*");
+        }
+        key = Console.ReadKey(true);
+       
+    }
+    Console.WriteLine();
+
+    return password.ToString();
+}
