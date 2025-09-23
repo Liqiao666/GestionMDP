@@ -22,7 +22,7 @@ public static class CryptoService
         Buffer.BlockCopy(aes.IV, 0, result, 0, aes.IV.Length);
         Buffer.BlockCopy(encryptedText, 0, result, aes.IV.Length, encryptedText.Length);
 
-        return Convert.ToBase64String(encryptedText);
+        return Convert.ToBase64String(result);
     }
 
     public static string Decrypt(string EncryptedText, byte[] key)
